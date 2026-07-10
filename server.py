@@ -1,7 +1,7 @@
-from fastapi import raiseExceptions
-from fastapi import FastAPI, WebSocket, Request, HTTPException
+from fastapi import FastAPI, WebSocket, Request, HTTPException, Response
 import uvicorn
 import logging
+import prometheus_client
 
 logging.basicConfig(
     format="%(asctime)s.%(msecs)03dZ %(levelname)s:%(name)s:%(message)s",
@@ -12,6 +12,12 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 
 app = FastAPI()
+
+connected_clients = prometheus_client.Gauge(
+    "connected_clients",
+    "Number of connected websocket clients per subscription",
+    ["subscription_id"],
+)
 
 clients = {}
 subscribers = {}
@@ -27,13 +33,13 @@ async def webhook(subscription_id: str, request: Request):
         logging.info("Webhook received: %s", data)
 
         subscribers[subscription_id] = data
-        client = clients.get(subscription_id)
-
-        if client is not None:
-            await client.send_json(data) 
-            print("Data sent to websocket client")
+        
+        for client in clients.get(subscription_id, []):
+            await client.send_json(data)
+        
+        print("Data sent to websocket client")
         return {"message":"received"}  
-     
+    
     else:   
         print("Invalid endpoint, connection not accepted")
         return
@@ -42,15 +48,33 @@ async def webhook(subscription_id: str, request: Request):
 @app.websocket("/tunnel/{subscription_id}")
 async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
     await websocket.accept()
-    clients[subscription_id] = websocket
+    
+    if subscription_id not in clients:
+        clients[subscription_id] = []
+    
+    connected_clients.labels(subscription_id).inc()
+    
+    clients[subscription_id].append(websocket)
+    
     try:
         while True:
             data = await websocket.receive_text()
             await websocket.send_text("Message received")
     except Exception as e:
-        clients.pop(subscription_id, None)
+        connected_clients.labels(subscription_id).dec()
+        clients[subscription_id].remove(websocket)
 
+        if not clients[subscription_id]:
+            clients.pop(subscription_id, None)
+            
+
+@app.get("/metrics")
+def get_metrics():
+    return Response(
+        content=prometheus_client.generate_latest(),
+        media_type="text/plain",
+    )
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=5000) 
+    uvicorn.run(app, host="0.0.0.0", port=5000) 
     
