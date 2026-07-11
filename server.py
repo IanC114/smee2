@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, Request, HTTPException, Response
 import uvicorn
+import collections
 import logging
 import prometheus_client
 
@@ -19,7 +20,8 @@ connected_clients = prometheus_client.Gauge(
     ["subscription_id"],
 )
 
-clients = {}
+clients = collections.defaultdict(list)
+
 subscribers = {}
 
 @app.post("/webhook/{subscription_id}")
@@ -49,9 +51,6 @@ async def webhook(subscription_id: str, request: Request):
 async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
     await websocket.accept()
     
-    if subscription_id not in clients:
-        clients[subscription_id] = []
-    
     connected_clients.labels(subscription_id).inc()
     
     clients[subscription_id].append(websocket)
@@ -76,5 +75,5 @@ def get_metrics():
     )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000) 
+    uvicorn.run("server:app", host="0.0.0.0", port=5000) 
     
