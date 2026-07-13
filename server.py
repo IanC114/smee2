@@ -3,16 +3,18 @@ import uvicorn
 import collections
 import logging
 import prometheus_client
+from args import get_args
+
+app = FastAPI()
+args = get_args()
 
 logging.basicConfig(
     format="%(asctime)s.%(msecs)03dZ %(levelname)s:%(name)s:%(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
-    level=logging.INFO,
+    level=logging.ERROR - (args.verbose * 10),
 )
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
-
-app = FastAPI()
 
 connected_clients = prometheus_client.Gauge(
     "connected_clients",
@@ -32,6 +34,7 @@ subscribers = {}
 
 @app.post("/webhook/{subscription_id}")
 async def webhook(subscription_id: str, request: Request):
+    logging.debug(f"Webhook received at id: {subscription_id}")
     if subscription_id is not None:
         header_val = request.headers.get("X-API-Key")
         if (header_val != "hello"):
@@ -70,6 +73,8 @@ async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
     connected_clients.labels(subscription_id).inc()
     
     clients[subscription_id].append(websocket)
+
+    logging.debug(f"Websocket connection successfully established at id: {subscription_id}")
     
     try:
         while True:
@@ -84,6 +89,8 @@ async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
         clients[subscription_id].remove(websocket)
         if not clients[subscription_id]:
             clients.pop(subscription_id, None)
+
+        logging.debug(f"Websocket connection disconnected at id: {subscription_id}")
             
 
 @app.get("/metrics")
@@ -94,5 +101,5 @@ def get_metrics():
     )
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=5000) 
+    uvicorn.run(app, host="0.0.0.0", port=5000) 
     
