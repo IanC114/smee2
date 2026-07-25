@@ -28,6 +28,14 @@ websocat ws://127.0.0.1:5000/tunnel
 
 In another terminal, send a webhook payload:
 
+### bash
+```sh
+curl -X POST http://127.0.0.1:5000/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"message":"hello from webhook"}'
+```
+
+### windows, powershell
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:5000/webhook -ContentType "application/json" -Body '{"message":"hello from webhook"}'
 ```
