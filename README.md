@@ -4,6 +4,16 @@ Simple FastAPI webhook server that broadcasts incoming webhook payloads to conne
 
 ## Install
 
+### bash
+```sh
+python -m venv .venv
+
+source ./.venv/bin/activate
+
+python -m pip install -r requirements.txt
+```
+
+### windows
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1

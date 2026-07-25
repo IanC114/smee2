@@ -8,6 +8,7 @@ from args import get_args
 args = get_args()
 
 logging.basicConfig(
+    # in mondo we trust
     format="%(asctime)s.%(msecs)03dZ %(levelname)s:%(name)s:%(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
     level=logging.ERROR - (args.verbose * 10),
@@ -48,11 +49,11 @@ async def webhook(subscription_id: str, request: Request):
         for client in clients.get(subscription_id, []):
             await client.send_json(data)
         
-        print("Data sent to websocket client")
+        logging.error("Data sent to websocket client")
         return {"message":"received"}  
     
     else:   
-        print("Invalid endpoint, connection not accepted")
+        logging.error("Invalid subscription '%s', connection not accepted", subscription_id)
         return
     
     
