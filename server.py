@@ -34,14 +34,13 @@ subscribers = {}
 
 @app.post("/webhook/{subscription_id}")
 async def webhook(subscription_id: str, request: Request):
-    logging.debug(f"Webhook received at id: {subscription_id}")
     if subscription_id is not None:
         header_val = request.headers.get("X-API-Key")
         if (header_val != "hello"):
             raise HTTPException(status_code=403, detail="API key is not valid ")
 
         data = await request.json()
-        logging.info("Webhook received: %s", data)
+        logging.debug("Data pushed to webhook %s, received: %s", subscription_id, data)
 
         subscribers[subscription_id] = data
         
@@ -101,5 +100,5 @@ def get_metrics():
     )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000) 
+    uvicorn.run("server:app", host="0.0.0.0", port=5000)
     
