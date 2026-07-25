@@ -3,11 +3,15 @@ import uvicorn
 import collections
 import logging
 import prometheus_client
+from args import get_args
+
+args = get_args()
 
 logging.basicConfig(
+    # in mondo we trust
     format="%(asctime)s.%(msecs)03dZ %(levelname)s:%(name)s:%(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
-    level=logging.INFO,
+    level=logging.ERROR - (args.verbose * 10),
 )
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
@@ -38,18 +42,18 @@ async def webhook(subscription_id: str, request: Request):
             raise HTTPException(status_code=403, detail="API key is not valid ")
 
         data = await request.json()
-        logging.info("Webhook received: %s", data)
+        logging.debug("Data pushed to webhook %s, received: %s", subscription_id, data)
 
         subscribers[subscription_id] = data
         
         for client in clients.get(subscription_id, []):
             await client.send_json(data)
         
-        print("Data sent to websocket client")
+        logging.error("Data sent to websocket client")
         return {"message":"received"}  
     
     else:   
-        print("Invalid endpoint, connection not accepted")
+        logging.error("Invalid subscription '%s', connection not accepted", subscription_id)
         return
     
     
@@ -70,6 +74,8 @@ async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
     connected_clients.labels(subscription_id).inc()
     
     clients[subscription_id].append(websocket)
+
+    logging.debug(f"Websocket connection successfully established at id: {subscription_id}")
     
     try:
         while True:
@@ -84,6 +90,8 @@ async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
         clients[subscription_id].remove(websocket)
         if not clients[subscription_id]:
             clients.pop(subscription_id, None)
+
+        logging.debug(f"Websocket connection disconnected at id: {subscription_id}")
             
 
 @app.get("/metrics")
@@ -94,5 +102,4 @@ def get_metrics():
     )
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=5000) 
-    
+    uvicorn.run("server:app", host="0.0.0.0", port=5000)
