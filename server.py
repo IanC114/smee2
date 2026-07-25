@@ -5,7 +5,6 @@ import logging
 import prometheus_client
 from args import get_args
 
-app = FastAPI()
 args = get_args()
 
 logging.basicConfig(
@@ -15,6 +14,8 @@ logging.basicConfig(
 )
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+
+app = FastAPI()
 
 connected_clients = prometheus_client.Gauge(
     "connected_clients",
