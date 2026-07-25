@@ -16,6 +16,8 @@ logging.basicConfig(
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
 
 connected_clients = prometheus_client.Gauge(
@@ -42,18 +44,18 @@ async def webhook(subscription_id: str, request: Request):
             raise HTTPException(status_code=403, detail="API key is not valid ")
 
         data = await request.json()
-        logging.debug("Data pushed to webhook %s, received: %s", subscription_id, data)
+        logger.debug("Data pushed to webhook %s, received: %s", subscription_id, data)
 
         subscribers[subscription_id] = data
         
         for client in clients.get(subscription_id, []):
             await client.send_json(data)
         
-        logging.error("Data sent to websocket client")
+        logger.error("Data sent to websocket client")
         return {"message":"received"}  
     
     else:   
-        logging.error("Invalid subscription '%s', connection not accepted", subscription_id)
+        logger.error("Invalid subscription '%s', connection not accepted", subscription_id)
         return
     
     
@@ -75,7 +77,7 @@ async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
     
     clients[subscription_id].append(websocket)
 
-    logging.debug(f"Websocket connection successfully established at id: {subscription_id}")
+    logger.debug(f"Websocket connection successfully established at id: {subscription_id}")
     
     try:
         while True:
@@ -91,7 +93,7 @@ async def websocket_endpoint(subscription_id: str, websocket: WebSocket):
         if not clients[subscription_id]:
             clients.pop(subscription_id, None)
 
-        logging.debug(f"Websocket connection disconnected at id: {subscription_id}")
+        logger.debug(f"Websocket connection disconnected at id: {subscription_id}")
             
 
 @app.get("/metrics")
