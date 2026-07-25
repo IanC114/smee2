@@ -95,7 +95,14 @@ def get_metrics():
         media_type="text/plain",
     )
 
-
+# we have a separate __name__ check here due to how FastAPI starts
+# a server. the file is first ran (where __name__ == "__main__")
+# and then calls `uvicorn.run`. the call to run() reruns the file,
+# this time __name__ == "server". the separate __name__ if statement
+# is so the thread references the same instance as the global
+# metrics_handler referenced by the rest of the file. otherwise,
+# the thread interacts with an instance different than the one the
+# server uses
 if __name__ == "server":
     MetricsHandler.init()
 
